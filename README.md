@@ -20,3 +20,5 @@ npm install
 4. Update the `SEASON` variable with the season identifier (ex: "20242025" for 2024-2025 season)
 
 5. Run the generator ( `node app.js` )
+
+6. An .ics file will be generated in the working directory with the name "{TEAM}-{SEASON}.ics".
