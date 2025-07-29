@@ -4,7 +4,7 @@ const fs = require('fs/promises');
 
 // UPDATE THESE
 const TEAM = "BOS";
-const SEASON = "20242025";
+const SEASON = "20252026";
 
 async function getTeamInfo() {
   try {
