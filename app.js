@@ -79,7 +79,8 @@ async function getTeamSchedule(TEAM, SEASON) {
       
       const icsContent = ics.createEvents(events);
 
-      await fs.writeFile(`${__dirname}/${TEAM}-${SEASON}.ics`, icsContent.value);
+      const suffix = (PLAYOFFS_ONLY ? '-playoffs' : '') + (FUTURE_ONLY ? '-future' : '');
+      await fs.writeFile(`${__dirname}/${TEAM}-${SEASON}${suffix}.ics`, icsContent.value);
       console.log(`${teamName} ${SEASON.substring(0, 4) + "-" + SEASON.substring(4)} schedule .ics file successfully generated.`);
 
   } catch (error) {
