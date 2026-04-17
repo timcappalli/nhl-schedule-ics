@@ -2,9 +2,19 @@ const axios = require('axios');
 const ics = require('ics');
 const fs = require('fs/promises');
 
-// UPDATE THESE
-const TEAM = "BOS";
-const SEASON = "20252026";
+const args = Object.fromEntries(
+  process.argv.slice(2).reduce((acc, val, i, arr) => {
+    if (val.startsWith('--')) acc.push([val.slice(2), arr[i + 1]]);
+    return acc;
+  }, [])
+);
+const TEAM = args.team?.toUpperCase();
+const SEASON = args.season;
+
+if (!TEAM || !SEASON) {
+  console.error('Usage: node app.js --team <TEAM> --season <SEASON>\n  Example: node app.js --team BOS --season 20252026');
+  process.exit(1);
+}
 
 async function getTeamInfo() {
   try {
