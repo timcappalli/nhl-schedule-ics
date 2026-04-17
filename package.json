@@ -1,6 +1,6 @@
 {
   "name": "nhl-schedule-ics",
-  "version": "2025.07.29",
+  "version": "2026.04.17",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
