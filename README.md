@@ -15,10 +15,21 @@ cd nhl-schedule-ics
 npm install
 ```
 
-3. Update the `TEAM` variable with your team's short code (e.g. "BOS" for Boston Bruins)
+3. Run the generator with your team's short code and season identifier:
 
-4. Update the `SEASON` variable with the season identifier (ex: "20242025" for 2024-2025 season)
+```bash
+node app.js --team BOS --season 20252026
+```
 
-5. Run the generator ( `node app.js` )
+### Options
 
-6. An .ics file will be generated in the working directory with the name "{TEAM}-{SEASON}.ics".
+| Flag | Description |
+|------|-------------|
+| `--team` | **Required.** Three-letter team code (e.g. `BOS`) |
+| `--season` | **Required.** Season identifier in `YYYYYYYY` format (e.g. `20252026`) |
+| `--future-only` | Only include games that have not yet started |
+| `--playoffs-only` | Only include playoff games |
+
+Both `--future-only` and `--playoffs-only` can be combined to output only upcoming playoff games.
+
+4. An .ics file will be generated in the working directory with the name `{TEAM}-{SEASON}.ics`.
