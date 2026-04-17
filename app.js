@@ -4,15 +4,20 @@ const fs = require('fs/promises');
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, val, i, arr) => {
-    if (val.startsWith('--')) acc.push([val.slice(2), arr[i + 1]]);
+    if (val.startsWith('--')) {
+      const next = arr[i + 1];
+      acc.push([val.slice(2), (!next || next.startsWith('--')) ? true : next]);
+    }
     return acc;
   }, [])
 );
 const TEAM = args.team?.toUpperCase();
 const SEASON = args.season;
+const FUTURE_ONLY = 'future-only' in args;
+const PLAYOFFS_ONLY = 'playoffs-only' in args;
 
 if (!TEAM || !SEASON) {
-  console.error('Usage: node app.js --team <TEAM> --season <SEASON>\n  Example: node app.js --team BOS --season 20252026');
+  console.error('Usage: node app.js --team <TEAM> --season <SEASON> [--future-only] [--playoffs-only]\n  Example: node app.js --team BOS --season 20252026');
   process.exit(1);
 }
 
@@ -48,7 +53,10 @@ async function getTeamSchedule(TEAM, SEASON) {
   try {
     const teams = await getTeamInfo();
     const teamName = findTeamName(teams, TEAM);
-    const schedule = await getTeamSchedule(TEAM, SEASON);
+    let schedule = await getTeamSchedule(TEAM, SEASON);
+
+    if (FUTURE_ONLY) schedule = schedule.filter(game => new Date(game.startTimeUTC) > new Date());
+    if (PLAYOFFS_ONLY) schedule = schedule.filter(game => game.gameType === 3);
 
       const events = schedule.map(game => ({
         uid: `NHL-${SEASON}-${TEAM}-${game.id}`,
