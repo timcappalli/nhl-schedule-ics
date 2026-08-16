@@ -1,6 +1,10 @@
-const axios = require('axios');
 const ics = require('ics');
 const fs = require('fs/promises');
+
+const LEAGUE_MODULES = {
+  NHL: require('./lib/nhl'),
+  AHL: require('./lib/ahl'),
+};
 
 const args = Object.fromEntries(
   process.argv.slice(2).reduce((acc, val, i, arr) => {
@@ -13,75 +17,62 @@ const args = Object.fromEntries(
 );
 const TEAM = args.team?.toUpperCase();
 const SEASON = args.season;
+const LEAGUE = (args.league || 'NHL').toUpperCase();
 const FUTURE_ONLY = 'future-only' in args;
 const PLAYOFFS_ONLY = 'playoffs-only' in args;
 
 if (!TEAM || !SEASON) {
-  console.error('Usage: node app.js --team <TEAM> --season <SEASON> [--future-only] [--playoffs-only]\n  Example: node app.js --team BOS --season 20252026');
+  console.error('Usage: node app.js --team <TEAM> --season <SEASON> [--league <NHL|AHL>] [--future-only] [--playoffs-only]\n  Example (NHL): node app.js --team BOS --season 20252026\n  Example (AHL): node app.js --team PRO --season 20252026 --league AHL');
   process.exit(1);
 }
 
-async function getTeamInfo() {
-  try {
-    const response = await axios.get(`https://api.nhle.com/stats/rest/en/team`);
-    return response.data.data;
-  } catch (error) {
-    console.error(`Error fetching team details:`, error);
-    throw error;
-  }
+if (!LEAGUE_MODULES[LEAGUE]) {
+  console.error(`Unsupported league "${LEAGUE}". Supported leagues: ${Object.keys(LEAGUE_MODULES).join(', ')}.`);
+  process.exit(1);
 }
 
-function findTeamName(teams, triCode) {
-  return teams.find(team => team.triCode === triCode)?.fullName || null;
+if (LEAGUE === 'AHL' && PLAYOFFS_ONLY) {
+  console.error('--playoffs-only is not currently supported for --league AHL.');
+  process.exit(1);
 }
 
 function convertToEpoch(isoString) {
   return new Date(isoString).getTime();
 }
 
-async function getTeamSchedule(TEAM, SEASON) {
-  try {
-    const response = await axios.get(`https://api-web.nhle.com/v1/club-schedule-season/${TEAM}/${SEASON}`);
-    return response.data.games;
-  } catch (error) {
-    console.error(`Error fetching schedule for ${TEAM}:`, error);
-    throw error;
-  }
-};
-
 (async () => {
   try {
-    const teams = await getTeamInfo();
-    const teamName = findTeamName(teams, TEAM);
-    let schedule = await getTeamSchedule(TEAM, SEASON);
+    const { teamName, games: rawGames } = await LEAGUE_MODULES[LEAGUE].getNormalizedSchedule(TEAM, SEASON);
+    let schedule = rawGames;
 
     if (FUTURE_ONLY) schedule = schedule.filter(game => new Date(game.startTimeUTC) > new Date());
-    if (PLAYOFFS_ONLY) schedule = schedule.filter(game => game.gameType === 3);
+    if (PLAYOFFS_ONLY) schedule = schedule.filter(game => game.isPlayoff);
 
-      const events = schedule.map(game => ({
-        uid: `NHL-${SEASON}-${TEAM}-${game.id}`,
-        productId: `tc-nhl-to-ics`,
-        method: "PUBLISH",
-        start: convertToEpoch(game.startTimeUTC),
-        startInputType: "utc",
-        startOutputType: "utc",
-        duration: { hours: 2, minutes: 30 },
-        title: `🏒 ${findTeamName(teams, game.awayTeam.abbrev)} @ ${findTeamName(teams, game.homeTeam.abbrev)}`,
-        location: game.venue.default,
-        url: `https://nhl.com${game.gameCenterLink}`,
-        status: "CONFIRMED",
-        calName: `${teamName} ${SEASON.substring(0, 4) + "-" + SEASON.substring(4)} Schedule`,
-        transp: "TRANSPARENT",
-        busyStatus: "FREE"
-      }));
+    const events = schedule.map(game => ({
+      uid: `${LEAGUE}-${SEASON}-${TEAM}-${game.id}`,
+      productId: `tc-${LEAGUE.toLowerCase()}-to-ics`,
+      method: "PUBLISH",
+      start: convertToEpoch(game.startTimeUTC),
+      startInputType: "utc",
+      startOutputType: "utc",
+      duration: { hours: 2, minutes: 30 },
+      title: `🏒 ${game.awayTeamName} @ ${game.homeTeamName}`,
+      location: game.venue,
+      ...(game.gameCenterUrl ? { url: game.gameCenterUrl } : {}),
+      status: "CONFIRMED",
+      calName: `${teamName} ${SEASON.substring(0, 4) + "-" + SEASON.substring(4)} Schedule${LEAGUE !== 'NHL' ? ` (${LEAGUE})` : ''}`,
+      transp: "TRANSPARENT",
+      busyStatus: "FREE"
+    }));
 
-      console.log(events)
-      
-      const icsContent = ics.createEvents(events);
+    console.log(events)
 
-      const suffix = (PLAYOFFS_ONLY ? '-playoffs' : '') + (FUTURE_ONLY ? '-future' : '');
-      await fs.writeFile(`${__dirname}/${TEAM}-${SEASON}${suffix}.ics`, icsContent.value);
-      console.log(`${teamName} ${SEASON.substring(0, 4) + "-" + SEASON.substring(4)} schedule .ics file successfully generated.`);
+    const icsContent = ics.createEvents(events);
+
+    const filePrefix = LEAGUE === 'NHL' ? '' : `${LEAGUE}-`;
+    const suffix = (PLAYOFFS_ONLY ? '-playoffs' : '') + (FUTURE_ONLY ? '-future' : '');
+    await fs.writeFile(`${__dirname}/${filePrefix}${TEAM}-${SEASON}${suffix}.ics`, icsContent.value);
+    console.log(`${teamName} ${SEASON.substring(0, 4) + "-" + SEASON.substring(4)} schedule .ics file successfully generated.`);
 
   } catch (error) {
     console.error('Could not generate ics file:', error);
