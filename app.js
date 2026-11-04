@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const LEAGUE_MODULES = {
   NHL: require('./lib/nhl'),
   AHL: require('./lib/ahl'),
+  PWHL: require('./lib/pwhl'),
 };
 
 const args = Object.fromEntries(
@@ -22,7 +23,7 @@ const FUTURE_ONLY = 'future-only' in args;
 const PLAYOFFS_ONLY = 'playoffs-only' in args;
 
 if (!TEAM || !SEASON) {
-  console.error('Usage: node app.js --team <TEAM> --season <SEASON> [--league <NHL|AHL>] [--future-only] [--playoffs-only]\n  Example (NHL): node app.js --team BOS --season 20252026\n  Example (AHL): node app.js --team PRO --season 20252026 --league AHL');
+  console.error('Usage: node app.js --team <TEAM> --season <SEASON> [--league <NHL|AHL|PWHL>] [--future-only] [--playoffs-only]\n  Example (NHL): node app.js --team BOS --season 20252026\n  Example (AHL): node app.js --team PRO --season 20252026 --league AHL\n  Example (PWHL): node app.js --team BOS --season 20252026 --league PWHL');
   process.exit(1);
 }
 
@@ -31,8 +32,8 @@ if (!LEAGUE_MODULES[LEAGUE]) {
   process.exit(1);
 }
 
-if (LEAGUE === 'AHL' && PLAYOFFS_ONLY) {
-  console.error('--playoffs-only is not currently supported for --league AHL.');
+if (LEAGUE !== 'NHL' && PLAYOFFS_ONLY) {
+  console.error(`--playoffs-only is not currently supported for --league ${LEAGUE}.`);
   process.exit(1);
 }
 
